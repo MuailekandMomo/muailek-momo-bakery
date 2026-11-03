@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการหลังบ้าน - Muailek & Momo Bakery Shop</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    .admin-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.2rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--secondary);
+      margin-top: 4px;
+    }
+    .order-card {
+      background: white;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      padding: 1.5rem;
+      margin-bottom: 1.2rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s;
+    }
+    .order-card:hover {
+      border-color: var(--primary);
+    }
+    .order-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body style="background: #f8f5f0;">
+
+  <!-- Admin Navbar -->
+  <header class="navbar" style="background: white;">
+    <div class="nav-container">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <a href="index.html" class="logo-icon" style="text-decoration: none;">🧁</a>
+        <div>
+          <h1 style="font-size: 1.15rem; font-weight: 700; color: var(--secondary);">
+            ระบบจัดการร้าน Muailek & Momo
+          </h1>
+          <p id="supabase-status-pill" style="font-size: 0.75rem; color: #666;">
+            สถานะ: กำลังตรวจสอบฐานข้อมูล...
+          </p>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn-nav-outline" onclick="loadAdminOrders()">
+          <span>🔄</span> รีเฟรชข้อมูล
+        </button>
+        <a href="index.html" class="btn-primary" style="text-decoration: none;">
+          <span>หน้าร้านค้า</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content" style="padding-top: 2rem;">
+
+    <!-- Dashboard Stats Summary -->
+    <div class="admin-stats-grid">
+      <div class="stat-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">💰 ยอดสั่งซื้อรวม</span>
+        <div class="stat-val" id="stat-revenue" style="color: var(--primary);">฿0</div>
+      </div>
+      <div class="stat-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">📝 ออเดอร์ทั้งหมด</span>
+        <div class="stat-val" id="stat-total-orders">0</div>
+      </div>
+      <div class="stat-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">⏳ รอตรวจสลิป</span>
+        <div class="stat-val" id="stat-pending-slip" style="color: #d97706;">0</div>
+      </div>
+      <div class="stat-card">
+        <span style="font-size: 0.85rem; color: var(--text-muted);">🧁 กำลังอบขนม</span>
+        <div class="stat-val" id="stat-baking" style="color: #2563eb;">0</div>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div style="display: flex; gap: 8px; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 4px;">
+      <button class="category-chip active" id="tab-all" onclick="filterAdminStatus('all')">ทั้งหมด</button>
+      <button class="category-chip" id="tab-pending" onclick="filterAdminStatus('pending')">รอตรวจสอบ</button>
+      <button class="category-chip" id="tab-confirmed" onclick="filterAdminStatus('confirmed')">ยืนยันแล้ว</button>
+      <button class="category-chip" id="tab-baking" onclick="filterAdminStatus('baking')">กำลังอบขนม</button>
+      <button class="category-chip" id="tab-ready" onclick="filterAdminStatus('ready')">พร้อมส่ง/รับ</button>
+      <button class="category-chip" id="tab-completed" onclick="filterAdminStatus('completed')">สำเร็จแล้ว</button>
+    </div>
+
+    <!-- Orders List Container -->
+    <div id="admin-orders-list">
+      <!-- Rendered by admin.js -->
+    </div>
+
+  </main>
+
+  <!-- Slip View Modal -->
+  <div class="modal-overlay" id="modal-slip-viewer">
+    <div class="modal-card" style="text-align: center; max-width: 480px;">
+      <div class="modal-header">
+        <h3>หลักฐานการโอนเงิน (สลิป)</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-slip-viewer')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="modal-slip-img" src="" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="closeModal('modal-slip-viewer')">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
